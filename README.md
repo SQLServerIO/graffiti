@@ -22,6 +22,8 @@ default tags is a comma-separated list of schema names like json or yaml. The
 value for a field's tag is the lowercase of the field name. Only exported fields
 have tags generated. 
 
+Support skiping embeded struct and using camel case as output json field
+
 For example, 
 
 `graffiti gen json,yaml foo.go`
@@ -32,8 +34,10 @@ where foo.go looks like this:
 package foo
 
 type foo struct {
+	pkg.SomeEmbededStruct
 	ID   string
 	Name string
+	CamelCase string
 	mu   sync.Mutex
 }
 ```
@@ -44,8 +48,10 @@ Will produce the following output:
 package foo
 
 type foo struct {
+	pkg.SomeEmbededStruct
 	ID   string `json:"id" yaml:"id"`
 	Name string `json:"name" yaml:"yaml"`
+	CamelCase string `json:"camelCase" yaml:"camelCase"`
 	mu   sync.Mutex
 }
 ```
