@@ -25,7 +25,11 @@ type bar struct {
 	if err != nil {
 		t.Fatalf("Unexpected setup error from parsefile: %v", err)
 	}
-	b, err := gen(o, fset, n)
+	v, err := walkAST(o, n, []byte(code))
+	if err != nil {
+		t.Fatalf("AST parse wrong %s", err.Error())
+	}
+	b, err := gen(v, fset, n)
 	if err != nil {
 		t.Fatalf("Unexpected error from gen: %v", err)
 	}
@@ -62,7 +66,11 @@ type bar struct {
 	if err != nil {
 		t.Fatalf("Unexpected setup error from parsefile: %v", err)
 	}
-	b, err := gen(o, fset, n)
+	v, err := walkAST(o, n, []byte(code))
+	if err != nil {
+		t.Fatalf("AST parse wrong %s", err.Error())
+	}
+	b, err := gen(v, fset, n)
 	if err != nil {
 		t.Fatalf("Unexpected error from gen: %v", err)
 	}
@@ -100,7 +108,11 @@ type not struct {
 	if err != nil {
 		t.Fatalf("Unexpected setup error from parsefile: %v", err)
 	}
-	b, err := gen(o, fset, n)
+	v, err := walkAST(o, n, []byte(code))
+	if err != nil {
+		t.Fatalf("AST parse wrong %s", err.Error())
+	}
+	b, err := gen(v, fset, n)
 	if err != nil {
 		t.Fatalf("Unexpected error from gen: %v", err)
 	}
@@ -141,7 +153,11 @@ type bar struct {
 	if err != nil {
 		t.Fatalf("Unexpected setup error from parsefile: %v", err)
 	}
-	b, err := gen(o, fset, n)
+	v, err := walkAST(o, n, []byte(code))
+	if err != nil {
+		t.Fatalf("AST parse wrong %s", err.Error())
+	}
+	b, err := gen(v, fset, n)
 	if err != nil {
 		t.Fatalf("Unexpected error from gen: %v", err)
 	}
@@ -178,20 +194,24 @@ type RawRecord struct {
 	gorm.Model
 	Rating         float64
 	ExDivDate      time.Time
-}
+}`
 
-type Stock struct {
-	gorm.Model
-	Company string ` + "`" + `gorm:"index"` + "`" + `
-	Symbol  string ` + "`" + `gorm:"index"` + "`" + `
-}
-`
+	// type Stock struct {
+	// 	gorm.Model
+	// 	Company string ` + "`" + `gorm:"index"` + "`" + `
+	// 	Symbol  string ` + "`" + `gorm:"index"` + "`" + `
+	// }
+	// `
 
 	n, err := parser.ParseFile(fset, "foo.go", code, parser.ParseComments)
 	if err != nil {
 		t.Fatalf("Unexpected setup error from parsefile: %v", err)
 	}
-	b, err := gen(o, fset, n)
+	v, err := walkAST(o, n, []byte(code))
+	if err != nil {
+		t.Fatalf("AST parse wrong %s", err.Error())
+	}
+	b, err := gen(v, fset, n)
 	if err != nil {
 		t.Fatalf("Unexpected error from gen: %v", err)
 	}
@@ -214,13 +234,13 @@ type RawRecord struct {
 	Rating    float64   ` + "`" + `json:"rating" yaml:"rating"` + "`" + `
 	ExDivDate time.Time ` + "`" + `json:"exDivDate" yaml:"exDivDate"` + "`" + `
 }
-
-type Stock struct {
-	gorm.Model
-	Company string ` + "`" + `gorm:"index" json:"company" yaml:"company"` + "`" + `
-	Symbol  string ` + "`" + `gorm:"index" json:"symbol" yaml:"symbol"` + "`" + `
-}
 `
+	// type Stock struct {
+	// 	gorm.Model
+	// 	Company string ` + "`" + `gorm:"index" json:"company" yaml:"company"` + "`" + `
+	// 	Symbol  string ` + "`" + `gorm:"index" json:"symbol" yaml:"symbol"` + "`" + `
+	// }
+	// `
 
 	if expected != string(b) {
 		t.Errorf("expected: \n%q\ngot:\n%q", expected, string(b))

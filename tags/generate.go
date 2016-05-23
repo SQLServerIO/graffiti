@@ -32,6 +32,8 @@ type Options struct {
 	Types []string
 	// DryRun indicates whether we should simply write to StdOut rather than writing to the files.
 	DryRun bool
+	//Typescript indicates whether generate typescript class for structs or not
+	Typescript bool
 }
 
 // Generate generates tags according to the given options.
@@ -64,7 +66,15 @@ func genfile(o Options, file string) error {
 	if err != nil {
 		return err
 	}
-	b, err := gen(o, fset, n)
+	c, err := ioutil.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	v, err := walkAST(o, n, c)
+	if err != nil {
+		return err
+	}
+	b, err := gen(v, fset, n)
 	if err != nil {
 		return err
 	}
@@ -73,15 +83,28 @@ func genfile(o Options, file string) error {
 		// no changes
 		return nil
 	}
+	var tsb []byte
+	if o.Typescript {
+		tsb = genTS(v.structs)
+	}
 	if o.DryRun {
 		_, err := fmt.Fprintf(os.Stdout, "%s\n", b)
+		_, err = fmt.Printf("%s\n", string(tsb))
 		return err
 	}
-	return ioutil.WriteFile(file, b, 0644)
+
+	err = ioutil.WriteFile(file, b, 0644)
+	if err != nil {
+		return err
+	}
+	if o.Typescript {
+		return ioutil.WriteFile(file+".ts", tsb, 0644)
+	}
+	return nil
 }
 
-func gen(o Options, fset *token.FileSet, n ast.Node) ([]byte, error) {
-	v := &visitor{Options: o}
+func walkAST(o Options, n ast.Node, raw []byte) (*visitor, error) {
+	v := &visitor{Options: o, src: string(raw)}
 	ast.Walk(v, n)
 	if v.err != nil {
 		return nil, v.err
@@ -89,6 +112,19 @@ func gen(o Options, fset *token.FileSet, n ast.Node) ([]byte, error) {
 	if !v.changed {
 		return nil, nil
 	}
+	return v, nil
+}
+
+// func gen(o Options, fset *token.FileSet, n ast.Node, raw []byte) ([]byte, error) {
+func gen(v *visitor, fset *token.FileSet, n ast.Node) ([]byte, error) {
+	// v := &visitor{Options: o, src: string(raw)}
+	// ast.Walk(v, n)
+	// if v.err != nil {
+	// 	return nil, v.err
+	// }
+	// if !v.changed {
+	// 	return nil, nil
+	// }
 	c := printer.Config{Mode: printer.RawFormat}
 	buf := &bytes.Buffer{}
 	if err := c.Fprint(buf, fset, n); err != nil {
@@ -98,7 +134,37 @@ func gen(o Options, fset *token.FileSet, n ast.Node) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return b, nil
+}
+
+func genTS(structs []structDef) []byte {
+	// fmt.Printf("structs is %#v", structs)
+	fmt.Println("generating typescript...")
+	tmpl := `
+export class {{.Name}} {
+{{range $i,$e := .Fields}}	{{.Name}}:{{if (eq $e.FieldType "float" "float32" "float64" "int" "uint" "int32" "uint32" "int64" "uint64")}}number{{else if eq $e.FieldType  "time.Time"}}Date{{else if eq $e.FieldType  "bool"}}boolean{{else if eq $e.FieldType  "string"}}string{{end}};
+{{end}}}
+`
+	buf := bytes.NewBufferString("")
+	t := template.Must(template.New("ts").Parse(tmpl))
+	for _, s := range structs {
+		err := t.Execute(buf, s)
+		if err != nil {
+			fmt.Printf("tmplate render error %s \n", err.Error())
+			return nil
+		}
+	}
+	return buf.Bytes()
+}
+
+type structFieldDef struct {
+	Name      string
+	FieldType string
+}
+type structDef struct {
+	Name   string
+	Fields []structFieldDef
 }
 
 // visitor is a wrapper around Options that implement the ast.Visitor interface
@@ -110,10 +176,17 @@ type visitor struct {
 	changed bool
 	// err is non-nil if there was an error processing the file.
 	err error
+	// src is the src file content
+	src     string
+	structs []structDef
 }
 
 // Visit implements ast.Visitor and does the meat of the tag generation.
 func (v *visitor) Visit(n ast.Node) ast.Visitor {
+	if v.structs == nil {
+		v.structs = []structDef{}
+	}
+
 	if n == nil || v.err != nil {
 		return nil
 	}
@@ -122,6 +195,7 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 			if !v.shouldGen(t.Name.Name) {
 				return v
 			}
+			sd := structDef{Name: t.Name.Name, Fields: []structFieldDef{}}
 			for _, f := range s.Fields.List {
 				l := len(f.Names)
 				if l > 1 || l <= 0 {
@@ -129,12 +203,12 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 					// or embeded structs
 					continue
 				}
-
 				name := f.Names[0].Name
 				if !ast.IsExported(name) {
 					// skip non-exported names
 					continue
 				}
+
 				if f.Tag == nil {
 					f.Tag = &ast.BasicLit{}
 				}
@@ -143,6 +217,10 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 					v.err = err
 					return nil
 				}
+				sfd := structFieldDef{}
+				sfd.Name = toCamelCase(name)
+				sfd.FieldType = v.src[f.Type.Pos()-1 : f.Type.End()-1]
+				sd.Fields = append(sd.Fields, sfd)
 				// fmt.Printf("original value %s \n", f.Tag.Value)
 				// tag := ""
 				// if f.Tag.Value != "" {
@@ -155,8 +233,11 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 				f.Tag.Value = val
 				v.changed = true
 			}
+			v.structs = append(v.structs, sd)
 		}
+
 	}
+	// fmt.Printf("fields composed done %#v\n", v.structs)
 	return v
 }
 
@@ -180,9 +261,7 @@ func (v visitor) gen(name string) (string, error) {
 	if m, ok := v.Mapping[name]; ok {
 		name = m
 	} else {
-		ns := camelcase.Split(name)
-		ns[0] = strings.ToLower(ns[0])
-		name = strings.Join(ns, "")
+		name = toCamelCase(name)
 	}
 	if len(v.Tags) > 0 {
 		vals := make([]string, len(v.Tags))
@@ -199,4 +278,10 @@ func (v visitor) gen(name string) (string, error) {
 		return "", err
 	}
 	return "`" + buf.String() + "`", nil
+}
+
+func toCamelCase(in string) string {
+	ns := camelcase.Split(in)
+	ns[0] = strings.ToLower(ns[0])
+	return strings.Join(ns, "")
 }
