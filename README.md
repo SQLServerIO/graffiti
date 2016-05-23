@@ -58,9 +58,12 @@ type foo struct {
 ```
 
 Typescript <-> go map
+```
 .int/uint/int32/int64/uint64/uint32/float/float32/float64 -> number
 .time.Time -> Date
 .string -> string
+.bool -> boolean
+```
 
 ```typescript
 export class Foo {
