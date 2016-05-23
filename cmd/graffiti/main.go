@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/natefinch/graffiti/tags"
+	"github.com/davyzhang/graffiti/tags"
 )
 
 func main() {
@@ -53,6 +53,7 @@ func genCmd() *cobra.Command {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
+		// fmt.Printf("here %#v", opt)
 		if err := tags.Generate(opt); err != nil {
 			fmt.Println(err)
 			os.Exit(-1)
@@ -69,7 +70,7 @@ func makeOptions(types, mapping string, isTempl, dryRun bool, args []string) (ta
 	}
 
 	opt := tags.Options{DryRun: dryRun}
-
+	// fmt.Printf("args %#v", args)
 	if len(args) > 1 {
 		opt.Target = args[1]
 	} else {
@@ -120,6 +121,7 @@ func runCmd() *cobra.Command {
 		Long:  runUsage,
 	}
 	cmd.Run = func(cmd *cobra.Command, args []string) {
+		// fmt.Printf("args in run command %#v", args)
 		// File is required.
 		if len(args) != 1 {
 			fmt.Printf("Wrong number of arguments, expected 1, got %d", len(args))

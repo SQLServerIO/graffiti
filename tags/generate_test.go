@@ -158,22 +158,32 @@ type bar struct {
 	}
 }
 
-func TestGenFormatMapping(t *testing.T) {
-	temp, err := template.New("tags").Parse(`foo:"{{.F}}" bar:"{{.F}}"`)
-	if err != nil {
-		t.Fatalf("Unexpected setup error parsing template: %v", err)
-	}
-
-	o := Options{
-		Template: temp,
-		Mapping:  map[string]string{"ID": "_id"},
-	}
+func TestEmbedStruct(t *testing.T) {
+	o := Options{Tags: []string{"json", "yaml"}}
 	fset := token.NewFileSet()
+	code := `package model
 
-	code := `package foo
+import (
+	"dividend/config"
+	"fmt"
+	"log"
+	"time"
 
-type bar struct {
-	ID string
+	"github.com/jinzhu/gorm"
+	_ "github.com/lib/pq" //postgres driver
+)
+
+//RawRecord  from text file
+type RawRecord struct {
+	gorm.Model
+	Rating         float64
+	ExDivDate      time.Time
+}
+
+type Stock struct {
+	gorm.Model
+	Company string ` + "`" + `gorm:"index"` + "`" + `
+	Symbol  string ` + "`" + `gorm:"index"` + "`" + `
 }
 `
 
@@ -186,10 +196,29 @@ type bar struct {
 		t.Fatalf("Unexpected error from gen: %v", err)
 	}
 
-	expected := `package foo
+	expected := `package model
 
-type bar struct {
-	ID string ` + "`" + `foo:"_id" bar:"_id"` + "`" + `
+import (
+	"dividend/config"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/jinzhu/gorm"
+	_ "github.com/lib/pq" //postgres driver
+)
+
+//RawRecord  from text file
+type RawRecord struct {
+	gorm.Model
+	Rating    float64   ` + "`" + `json:"rating" yaml:"rating"` + "`" + `
+	ExDivDate time.Time ` + "`" + `json:"exDivDate" yaml:"exDivDate"` + "`" + `
+}
+
+type Stock struct {
+	gorm.Model
+	Company string ` + "`" + `gorm:"index" json:"company" yaml:"company"` + "`" + `
+	Symbol  string ` + "`" + `gorm:"index" json:"symbol" yaml:"symbol"` + "`" + `
 }
 `
 

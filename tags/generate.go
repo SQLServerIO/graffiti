@@ -13,6 +13,8 @@ import (
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/fatih/camelcase"
 )
 
 // Options contains the data needed to generate tags for a target (file or
@@ -56,6 +58,7 @@ func Generate(o Options) error {
 
 // genfile generates struct tags for the given file.
 func genfile(o Options, file string) error {
+	fmt.Println("gen file", file)
 	fset := token.NewFileSet()
 	n, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 	if err != nil {
@@ -66,6 +69,7 @@ func genfile(o Options, file string) error {
 		return err
 	}
 	if b == nil {
+		fmt.Println("nil bytes")
 		// no changes
 		return nil
 	}
@@ -119,10 +123,13 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 				return v
 			}
 			for _, f := range s.Fields.List {
-				if len(f.Names) > 1 {
+				l := len(f.Names)
+				if l > 1 || l <= 0 {
 					// skip fields declared as a, b, c int
+					// or embeded structs
 					continue
 				}
+
 				name := f.Names[0].Name
 				if !ast.IsExported(name) {
 					// skip non-exported names
@@ -136,7 +143,16 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 					v.err = err
 					return nil
 				}
-				f.Tag.Value = val
+				fmt.Printf("original value %s \n", f.Tag.Value)
+				tag := ""
+				if f.Tag.Value != "" {
+					t := strings.TrimSuffix(f.Tag.Value, "`")
+					tag = t + " " + strings.TrimPrefix(val, "`")
+				} else {
+					tag = val
+				}
+				fmt.Printf("tag gen %s \n", tag)
+				f.Tag.Value = tag
 				v.changed = true
 			}
 		}
@@ -164,7 +180,9 @@ func (v visitor) gen(name string) (string, error) {
 	if m, ok := v.Mapping[name]; ok {
 		name = m
 	} else {
-		name = strings.ToLower(name)
+		ns := camelcase.Split(name)
+		ns[0] = strings.ToLower(ns[0])
+		name = strings.Join(ns, "")
 	}
 	if len(v.Tags) > 0 {
 		vals := make([]string, len(v.Tags))
