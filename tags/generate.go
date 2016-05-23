@@ -143,8 +143,12 @@ func genTS(structs []structDef) []byte {
 	fmt.Println("generating typescript...")
 	tmpl := `
 export class {{.Name}} {
-{{range $i,$e := .Fields}}	{{.Name}}:{{if (eq $e.FieldType "float" "float32" "float64" "int" "uint" "int32" "uint32" "int64" "uint64")}}number{{else if eq $e.FieldType  "time.Time"}}Date{{else if eq $e.FieldType  "bool"}}boolean{{else if eq $e.FieldType  "string"}}string{{end}};
-{{end}}}
+{{range $i,$e := .Fields}}	{{.Name}}:{{if (eq $e.FieldType "float" "float32" "float64" "int" "uint" "int32" "uint32" "int64" "uint64")}}number;
+{{else if eq $e.FieldType  "time.Time"}}Date;
+{{else if eq $e.FieldType  "bool"}}boolean;
+{{else if eq $e.FieldType  "string"}}string;
+{{else}}any;
+{{end}}{{end}}}
 `
 	buf := bytes.NewBufferString("")
 	t := template.Must(template.New("ts").Parse(tmpl))

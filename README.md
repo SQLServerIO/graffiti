@@ -15,6 +15,7 @@ Available Flags:
   -f, --format		If set, tags is a go template (see help templates).
   -m, --map=""		Map field names to alternate tag names (see help mappings).
   -t, --types=""	Generate tags only for these types (comma separated list).
+  -s, --typescript	Generate typescript class definition file in the same directory
 ```
 
 If no target is given, all go files in the current directory are processed. By
@@ -56,6 +57,18 @@ type foo struct {
 }
 ```
 
+Typescript <-> go map
+.int/uint/int32/int64/uint64/uint32/float/float32/float64 -> number
+.time.Time -> Date
+.string -> string
+
+```typescript
+export class Foo {
+	id:string; 
+	name:string;
+	camelCase:string;
+}
+```
 ### Run Command
 
 Reads graffiti commands from a go file and executes them.
