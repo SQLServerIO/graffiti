@@ -143,16 +143,16 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 					v.err = err
 					return nil
 				}
-				fmt.Printf("original value %s \n", f.Tag.Value)
-				tag := ""
-				if f.Tag.Value != "" {
-					t := strings.TrimSuffix(f.Tag.Value, "`")
-					tag = t + " " + strings.TrimPrefix(val, "`")
-				} else {
-					tag = val
-				}
-				fmt.Printf("tag gen %s \n", tag)
-				f.Tag.Value = tag
+				// fmt.Printf("original value %s \n", f.Tag.Value)
+				// tag := ""
+				// if f.Tag.Value != "" {
+				// 	t := strings.TrimSuffix(f.Tag.Value, "`")
+				// 	tag = t + " " + strings.TrimPrefix(val, "`")
+				// } else {
+				// 	tag = val
+				// }
+				// fmt.Printf("tag gen %s \n", tag)
+				f.Tag.Value = val
 				v.changed = true
 			}
 		}
